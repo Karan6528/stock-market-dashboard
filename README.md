@@ -1,128 +1,145 @@
 <p align="center">
-  <img src="assets/banner_wide.jpg" alt="AI Stock Market Dashboard" width="100%">
+  <img src="assets/banner_wide.jpg" alt="Stock Market Dashboard banner" width="100%">
 </p>
 
-# AI Stock Market Dashboard
+# Stock Market Dashboard
 
-A multi-page **Streamlit** app for stock market analysis: live quotes, technical indicators, portfolio risk,
-strategy backtesting and machine learning. It runs **offline first**: everything works from a local cache
-(or clearly labelled demo data) with no internet connection and no API keys.
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://karan-stock-dashboard.streamlit.app)
 
-**Stack:** Python · Streamlit · pandas · NumPy · SciPy · scikit-learn · XGBoost · arch (GARCH) · Plotly ·
-yfinance · Stable-Baselines3 (PPO) · SQLite
+**Live app:** https://karan-stock-dashboard.streamlit.app
 
----
+I built this during my MSc at Gisma because I wanted one place to look at a stock from every angle:
+the chart, the news, the risk, and whether any of the "AI predicts the market" stuff actually holds up.
+It started as about 40 separate Streamlit scripts that launched each other. This repo is the cleaned-up
+version: one app, 22 pages, and it still works when I'm offline on a train.
 
-## Features
+> The free Streamlit server goes to sleep when nobody uses it. If you see "This app has gone to sleep",
+> click the button and give it about 30 seconds to wake up.
 
-| Section | Pages | Highlights |
-|---|---|---|
-| **Market** | Live Quote · Market & Sectors · Stock Screener | Auto-refreshing intraday chart, index trend checks (EMA/SMA, golden cross), 11 sector ETFs, screener on RSI / trend / Bollinger |
-| **Charts** | Price Charts · Compare & Correlate · Technical Indicators · Volume · Anomaly Detection | Candlestick/OHLC, "what if I had invested", rolling correlation, 10 indicators computed locally, Isolation Forest + rolling z-score anomalies |
-| **Fundamentals & News** | Financials · News Sentiment · YouTube Videos | Valuation and profitability ratios, income statement, analyst targets, NLP headline sentiment with 😊 / 😐 / 😟 verdicts checked against the next-session price reaction, transcript summaries |
-| **Portfolio** | Trade Planner · My Portfolio · Portfolio Analytics · Risk Dashboard · Strategy Backtest | Risk-based position sizing (shares to buy, ATR stop-loss, target, holding days from historical replay), SQLite-backed holdings, efficient frontier (max-Sharpe / min-vol), VaR & CVaR, beta/alpha, Monte Carlo fan charts, GARCH(1,1), 5 strategies vs buy-and-hold with costs |
-| **Machine Learning** | Next-Day Prediction · Long-Term Projection · Volatility Regimes · RL Trading Agent | 8 models benchmarked against a naive baseline, leak-free features, regime classifier, PPO agent evaluated out-of-sample |
-| **Alerts** | Price Alerts | Threshold and %-move alerts with optional email |
+## What it does
 
-## Quick start (local, offline-first)
+**Market:** live quote with an intraday chart, index trends (S&P 500, Nasdaq, Dow, Russell), sector ETF
+performance, and a screener that filters a watchlist by price, volume, RSI and trend.
+
+**Charts:** candlestick / OHLC charts, a "what if I had invested X in year Y" calculator, multi-stock
+comparison with correlation heatmaps, 10 technical indicators (RSI, MACD, Bollinger, ATR, ADX, ...),
+volume analysis, and anomaly detection with a rolling z-score or an Isolation Forest.
+
+**News:** pulls recent headlines, scores each one with VADER, and tags it 😊 good, 😐 neutral or 😟 bad.
+Then it checks what the stock price actually did in the next session, so you can see whether the market
+agreed with the sentiment. (Often it doesn't, which was an interesting finding in itself.)
+
+**Trade Planner:** you enter a budget and how much you're willing to lose. It tells you how many shares
+to buy, where to put a stop-loss (based on ATR), a target price, and how many days to hold. The holding
+period comes from replaying the same plan on every trading day in the last 10 years and measuring how
+long the target took to hit.
+
+**Portfolio:** a holdings tracker saved in SQLite, portfolio analytics with an efficient frontier
+(max-Sharpe and min-volatility weights), VaR / CVaR, beta, Monte Carlo simulations, a GARCH(1,1)
+volatility forecast, and a backtester for five simple strategies against buy-and-hold, including
+trading costs.
+
+**Machine learning:**
+- Next-day prediction with 8 models (linear, ridge, trees, random forest, gradient boosting, KNN, SVR,
+  XGBoost), all compared against just guessing "tomorrow = today".
+- A volatility-regime classifier (low / medium / high for the next month).
+- A PPO reinforcement-learning agent trained on one period and tested on a later one.
+
+**Alerts:** price alerts that check while the page is open, with optional email.
+
+## A few things I learned (and fixed)
+
+The first version of this project had some results that looked great but were wrong, so these
+are the rules I follow now:
+
+- **Compare against a dumb baseline.** My early models had 99% "accuracy" predicting prices. It turns out
+  predicting today's price for tomorrow also gets 99%. Now every model is compared with that naive
+  guess, and most of them don't beat it, which is the honest result for daily stock prices.
+- **No peeking at the future.** My old risk classifier scored ~100% because the label was hidden in the
+  features. Features now only use data up to day *t*, and there's a unit test that changes future prices
+  and checks that past features stay the same.
+- **Train on the past, test on the future.** No random shuffling of time series.
+- **Show a range, not one number.** Long-term projections are Monte Carlo fan charts, not a single
+  straight trend line.
+
+## Offline mode
+
+I wanted it to work without internet and without API keys, so data is fetched in this order:
+
+1. **Live** from Yahoo Finance (`yfinance`). Every download gets saved to `data/`.
+2. **Cache:** if you're offline (toggle in the sidebar), it reads from `data/`.
+3. **Demo:** if a ticker was never downloaded, it generates synthetic prices so the page still works.
+   There's always a banner when you're looking at demo data.
+
+To download a bunch of tickers in one go:
+
+```bash
+python scripts/download_data.py                 # default watchlist, indices and sector ETFs
+python scripts/download_data.py AAPL TSLA SAP.DE --years 5
+```
+
+## Running it locally
 
 ```bash
 git clone https://github.com/Karan6528/stock-market-dashboard.git
 cd stock-market-dashboard
 
 python -m venv .venv
-# Windows: .venv\Scripts\activate     macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
+.venv\Scripts\activate          # Windows
+# source .venv/bin/activate     # Mac / Linux
 
+pip install -r requirements.txt
 streamlit run app.py
 ```
 
-The app opens at http://localhost:8501.
+It opens at http://localhost:8501.
 
-**Offline mode.** Switch on *Offline mode* in the sidebar, or set `OFFLINE_MODE = true` in `.streamlit/secrets.toml`.
+The RL page needs PyTorch, which is big (about 1 GB), so it's kept separate:
+`pip install -r requirements-rl.txt`
 
-1. **Online**: prices come from Yahoo Finance via `yfinance`. Every download is saved to `data/prices/*.csv`
-   (company info, financials and news are cached too).
-2. **Offline**: pages read only from `data/`.
-3. **No cache yet**: the app falls back to **demo data**. These are synthetic, deterministic prices with a shared
-   market factor, so correlations and betas behave realistically. A banner always says when you're
-   looking at cached or demo data.
+Tests: `pip install -r requirements-dev.txt` and then `pytest -q`
 
-To fill the cache in one go while online:
+## API keys (optional)
 
-```bash
-python scripts/download_data.py                     # default watchlist + indices + sector ETFs, 10 years
-python scripts/download_data.py AAPL TSLA SAP.DE --years 5
-```
+None are needed to run the app. If you want the extras, copy `.streamlit/secrets.toml.example` to
+`.streamlit/secrets.toml` and fill in:
 
-**Optional extras**
+- `ALPHA_VANTAGE_API_KEY`: news with Alpha Vantage's own sentiment scores (otherwise it uses Yahoo / Google News)
+- `YOUTUBE_API_KEY`: the YouTube videos page
+- `SMTP_USER` / `SMTP_PASSWORD`: email alerts (use a Gmail app password)
 
-```bash
-pip install -r requirements-rl.txt     # RL Trading Agent page (PyTorch, ~1 GB)
-pip install -r requirements-dev.txt    # pytest
-pytest -q                              # 15 unit tests
-```
-
-## API keys (all optional)
-
-Copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` and fill in what you need.
-`secrets.toml` is git-ignored, and **no key is hardcoded anywhere in the code**.
-
-| Key | Used for | Without it |
-|---|---|---|
-| `ALPHA_VANTAGE_API_KEY` | News with provider sentiment scores | Falls back to Yahoo Finance headlines |
-| `YOUTUBE_API_KEY` | YouTube Videos page | Page shows setup instructions |
-| `SMTP_USER`, `SMTP_PASSWORD` | Email price alerts | In-app alerts only |
-
-## Deploy online (Streamlit Community Cloud)
-
-1. Push the repo to GitHub (secrets and `data/` are excluded by `.gitignore`).
-2. On [share.streamlit.io](https://share.streamlit.io), click **Create app**, pick the repo, and set the main file to `app.py`.
-3. Under **Advanced settings → Secrets**, paste the contents of your `secrets.toml`.
-4. Deploy. The cloud disk is temporary, so the cache rebuilds as people use the app.
-
-The RL page needs `requirements-rl.txt`. Cloud builds use `requirements.txt` only, so the RL page shows
-install instructions there, which keeps the deployment small.
+`secrets.toml` is in `.gitignore`, so keys never end up on GitHub.
 
 ## Project structure
 
 ```
-app.py                  # entry point: navigation + offline toggle
+app.py                 navigation + offline toggle
 core/
-  config.py             # paths, secrets, offline switch
-  data.py               # live → cache → demo fallback chain
-  indicators.py         # SMA, EMA, RSI (Wilder), MACD, Bollinger, ATR, ADX, Stochastic, CCI, OBV
-  risk.py               # returns, Sharpe/Sortino, VaR/CVaR, beta, drawdown, Monte Carlo, optimiser, GARCH
-  ml.py                 # leak-free features, model zoo, evaluation vs naive baseline
-  rl_env.py             # Gymnasium trading environment
-  sentiment.py          # VADER → TextBlob → keyword fallback, emoji verdicts, price reaction
-  planner.py            # position sizing, stop/target, historical plan replay
-  portfolio_db.py       # SQLite holdings
-  ui.py                 # shared widgets, chart styling, data-source banner
-views/                  # one file per page (22 pages)
-scripts/download_data.py
-tests/test_core.py
+  data.py              live -> cache -> demo data, news from 4 sources
+  indicators.py        RSI, MACD, Bollinger, ATR, ADX, stochastic, CCI, OBV
+  risk.py              Sharpe, VaR/CVaR, beta, drawdown, Monte Carlo, optimiser, GARCH
+  ml.py                features, models, evaluation against the naive baseline
+  planner.py           position sizing + historical replay for the trade planner
+  sentiment.py         VADER scoring, emoji verdicts, price reaction to news
+  rl_env.py            Gymnasium environment for the PPO agent
+  portfolio_db.py      SQLite holdings
+  ui.py                shared widgets and chart styling
+views/                 one file per page
+scripts/               data download script
+tests/                 unit tests
 ```
 
-## Methodology notes
+## Tech
 
-These are the choices that make the results trustworthy rather than just impressive-looking:
-
-- **No look-ahead.** ML features on day *t* use only data up to *t*, and the target is the *t → t+1* return.
-  A unit test shocks future prices and asserts that past features don't change. Backtests trade on the
-  previous day's signal.
-- **Honest baselines.** Next-day models are scored against "tomorrow = today". The volatility classifier is
-  scored against a persistence baseline, with regime thresholds taken from training data only.
-- **Chronological splits.** Train on the past, test on the future, with no shuffling.
-- **Ranges instead of point forecasts.** Long-term projections are Monte Carlo fan charts. A straight-line
-  trend extrapolation is shown alongside for comparison, to explain why it misleads.
-- **Costs included.** Backtests and the RL environment charge a per-trade cost.
+Python, Streamlit, pandas, NumPy, SciPy, scikit-learn, XGBoost, arch, Plotly, yfinance, VADER,
+Stable-Baselines3, SQLite
 
 ## Disclaimer
 
-This is an educational project and not investment advice.
+This is a learning project, not financial advice. Please don't trade real money based on a student's
+dashboard 🙂
 
 ---
 
-Built by **Karan Lodha**, MSc Data Science, AI & Digital Business @ Gisma University of Applied Sciences, Berlin ·
+Karan Lodha · MSc Data Science, AI & Digital Business, Gisma University of Applied Sciences, Berlin
 [GitHub](https://github.com/Karan6528) · [LinkedIn](https://www.linkedin.com/in/karanlodha/)
