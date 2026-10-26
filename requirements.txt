@@ -1,0 +1,18 @@
+# Core app
+streamlit>=1.50
+yfinance>=0.2.54
+pandas>=2.1
+numpy>=1.26
+scipy>=1.11
+scikit-learn>=1.4
+plotly>=5.20
+requests>=2.31
+
+# Analytics extras (pages degrade gracefully if missing)
+xgboost>=2.0
+arch>=7.0
+vaderSentiment>=3.3.2
+
+# YouTube page (optional, needs YOUTUBE_API_KEY)
+google-api-python-client>=2.100
+youtube-transcript-api>=0.6

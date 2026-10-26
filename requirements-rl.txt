@@ -1,0 +1,4 @@
+# Optional: reinforcement-learning page (installs PyTorch, ~1 GB)
+-r requirements.txt
+gymnasium>=0.29
+stable-baselines3>=2.3

@@ -1,0 +1,22 @@
+# secrets
+.streamlit/secrets.toml
+.env
+
+# local data, cache and trained models
+data/*
+!data/.gitkeep
+models/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
