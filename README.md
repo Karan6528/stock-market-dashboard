@@ -27,8 +27,8 @@ yfinance · Stable-Baselines3 (PPO) · SQLite
 ## Quick start (local, offline-first)
 
 ```bash
-git clone https://github.com/Karan6528/stockmarketprediction.git
-cd stockmarketprediction
+git clone https://github.com/Karan6528/stock-market-dashboard.git
+cd stock-market-dashboard
 
 python -m venv .venv
 # Windows: .venv\Scripts\activate     macOS/Linux: source .venv/bin/activate
